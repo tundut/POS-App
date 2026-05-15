@@ -1,36 +1,54 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# POS System
+
+A Point of Sale system built with Node.js, Express, PostgreSQL, and VNPay integration.
+
+## Features
+
+- User registration and login
+- Product management
+- Shopping cart
+- Order management
+- VNPay payment gateway integration (sandbox)
 
 ## Getting Started
 
-First, run the development server:
+1. Install dependencies:
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+   ```bash
+   npm install
+   ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Set up PostgreSQL locally:
+   - Install PostgreSQL
+   - Create a database named `pos`
+   - Update `DATABASE_URL_LOCAL` in `.env` if needed
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. Initialize the database schema:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+   ```bash
+   psql -d pos -f db/init.sql
+   ```
 
-## Learn More
+4. Configure VNPay:
+   - Register for VNPay sandbox at https://sandbox.vnpayment.vn/
+   - Get your TMN Code and Hash Secret
+   - Update `VNP_TMN_CODE` and `VNP_HASH_SECRET` in `.env`
+   - For localhost testing, use ngrok to expose port 5000 publicly and set `VNP_RETURN_URL` to the ngrok URL
 
-To learn more about Next.js, take a look at the following resources:
+5. Configure email sending:
+   - Add SMTP settings to `.env`: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`
+   - The system will use these settings to send invoice emails to customers without storing their email address in the database
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+6. Run the server:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+   ```bash
+   npm start
+   ```
 
-## Deploy on Vercel
+7. Open [http://localhost:5000](http://localhost:5000) in your browser.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Deployment to AWS
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Database: Use Amazon RDS for PostgreSQL or another managed Postgres service
+- Application: Deploy to an EC2 instance or Elastic Beanstalk
+- Update `.env` with the production PostgreSQL connection string
