@@ -1,115 +1,147 @@
 const express = require('express');
 const db = require('../db');
-const { auth, authorizeRole } = require('../middleware/auth');
-const { sendInvoiceEmail } = require('../utils/email');
+const { auth } = require('../middleware/auth');
+const { sendReceiptEmail } = require('../utils/email');
 const router = express.Router();
 
-// // Get orders for user
-// router.get('/:userId', auth, async (req, res) => {
-//   try {
-//     const result = await db.query(
-//       `SELECT o.id AS order_id, o.total, o.status, o.payment_id, oi.product_id, oi.quantity,
-//         p.name AS product_name, p.price AS product_price, p.description AS product_description
-//        FROM orders o
-//        JOIN order_items oi ON oi.order_id = o.id
-//        JOIN products p ON p.id = oi.product_id
-//        WHERE o.user_id = $1
-//        ORDER BY o.id, oi.id`,
-//       [req.params.userId]
-//     );
-
-//     const orders = [];
-//     const map = {};
-//     result.rows.forEach(row => {
-//       if (!map[row.order_id]) {
-//         map[row.order_id] = {
-//           id: row.order_id,
-//           total: row.total,
-//           status: row.status,
-//           paymentId: row.payment_id,
-//           products: []
-//         };
-//         orders.push(map[row.order_id]);
-//       }
-//       map[row.order_id].products.push({
-//         productId: row.product_id,
-//         name: row.product_name,
-//         price: row.product_price,
-//         description: row.product_description,
-//         quantity: row.quantity
-//       });
-//     });
-
-//     res.json(orders);
-//   } catch (err) {
-//     res.status(500).json({ message: err.message });
-//   }
-// });
-
-// Create order
-router.post('/', auth, authorizeRole('admin', 'employee'), async (req, res) => {
-  const { customerEmail, userId, products } = req.body;
-  if (!customerEmail || typeof customerEmail !== 'string') {
-    return res.status(400).json({ message: 'Customer email is required' });
+// GET all orders for tenant
+router.get('/', auth, async (req, res) => {
+  try {
+    const result = await db.query(
+      `SELECT o.*, u.name AS cashier_name
+       FROM orders o
+       LEFT JOIN users u ON u.id = o.cashier_id
+       WHERE o.tenant_id = $1
+       ORDER BY o.created_at DESC`,
+      [req.tenantId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
-  if (!Array.isArray(products) || products.length === 0) {
-    return res.status(400).json({ message: 'At least one product is required' });
+});
+
+// GET single order with items
+router.get('/:id', auth, async (req, res) => {
+  try {
+    const orderResult = await db.query(
+      `SELECT o.*, u.name AS cashier_name, t.name AS store_name
+       FROM orders o
+       LEFT JOIN users u ON u.id = o.cashier_id
+       LEFT JOIN tenants t ON t.id = o.tenant_id
+       WHERE o.id = $1 AND o.tenant_id = $2`,
+      [req.params.id, req.tenantId]
+    );
+    if (orderResult.rows.length === 0) return res.status(404).json({ message: 'Order not found' });
+
+    const itemsResult = await db.query(
+      'SELECT * FROM order_items WHERE order_id = $1 ORDER BY id', [req.params.id]
+    );
+
+    const paymentResult = await db.query(
+      'SELECT * FROM payments WHERE order_id = $1', [req.params.id]
+    );
+
+    res.json({
+      ...orderResult.rows[0],
+      items: itemsResult.rows,
+      payment: paymentResult.rows[0] || null,
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// POST create order
+router.post('/', auth, async (req, res) => {
+  const { items, customer_email, payment_method } = req.body;
+
+  if (!items || !Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ message: 'At least one item is required' });
+  }
+  if (!customer_email) {
+    return res.status(400).json({ message: 'Customer email is required' });
   }
 
   const client = await db.pool.connect();
   try {
-    const productIds = products.map(p => p.product);
-    const productRows = await client.query(
-      'SELECT id, name, price, description FROM products WHERE id = ANY($1)',
-      [productIds]
+    await client.query('BEGIN');
+
+    // Fetch product info and verify they belong to this tenant
+    const productIds = items.map(i => i.product_id);
+    const productsResult = await client.query(
+      'SELECT id, name, price FROM products WHERE id = ANY($1) AND tenant_id = $2',
+      [productIds, req.tenantId]
     );
+    const productMap = {};
+    productsResult.rows.forEach(p => { productMap[p.id] = p; });
 
-    const productMap = productRows.rows.reduce((acc, row) => {
-      acc[row.id] = {
-        id: row.id,
-        name: row.name,
-        price: Number(row.price),
-        description: row.description
-      };
-      return acc;
-    }, {});
-
-    let total = 0;
-    const invoiceItems = products.map(item => {
-      const product = productMap[item.product];
-      const quantity = item.quantity || 1;
-      const price = product ? product.price : 0;
-      total += price * quantity;
-      return {
-        productId: item.product,
-        name: product?.name || 'Unknown product',
-        price,
-        quantity
-      };
+    // Build order items with subtotals
+    let totalAmount = 0;
+    const orderItems = items.map(item => {
+      const product = productMap[item.product_id];
+      if (!product) throw new Error(`Product ${item.product_id} not found`);
+      const qty = item.quantity || 1;
+      const price = parseFloat(product.price);
+      const subtotal = price * qty;
+      totalAmount += subtotal;
+      return { product_id: product.id, product_name: product.name, product_price: price, quantity: qty, subtotal };
     });
 
-    await client.query('BEGIN');
-    const orderResult = await client.query(
-      'INSERT INTO orders(user_id, total, status, payment_id) VALUES($1, $2, $3, $4) RETURNING *',
-      [userId || null, total, 'pending', null]
-    );
+    // Create order — VNPay orders start as 'pending', cash/card are 'completed' immediately
+    const isVnpay = payment_method === 'vnpay';
+    const orderStatus = isVnpay ? 'pending' : 'completed';
+    const paymentStatus = isVnpay ? 'pending' : 'completed';
 
-    const orderId = orderResult.rows[0].id;
-    for (const item of invoiceItems) {
+    const orderResult = await client.query(
+      `INSERT INTO orders(tenant_id, cashier_id, customer_email, total_amount, status)
+       VALUES($1, $2, $3, $4, $5) RETURNING *`,
+      [req.tenantId, req.user.id, customer_email, totalAmount, orderStatus]
+    );
+    const order = orderResult.rows[0];
+
+    // Insert order items and update stock
+    for (const item of orderItems) {
       await client.query(
-        'INSERT INTO order_items(order_id, product_id, quantity) VALUES($1, $2, $3)',
-        [orderId, item.productId, item.quantity]
+        `INSERT INTO order_items(order_id, product_id, product_name, product_price, quantity, subtotal)
+         VALUES($1, $2, $3, $4, $5, $6)`,
+        [order.id, item.product_id, item.product_name, item.product_price, item.quantity, item.subtotal]
       );
+
+      // Only update product stock quantity immediately if not vnpay
+      if (!isVnpay) {
+        await client.query(
+          `UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2 AND tenant_id = $3`,
+          [item.quantity, item.product_id, req.tenantId]
+        );
+      }
     }
 
-    await sendInvoiceEmail({
-      to: customerEmail,
-      order: orderResult.rows[0],
-      products: invoiceItems
-    });
+    // Create payment record
+    const txRef = isVnpay ? null : 'CASH-' + Date.now();
+    await client.query(
+      `INSERT INTO payments(tenant_id, order_id, method, amount, transaction_ref, status)
+       VALUES($1, $2, $3, $4, $5, $6)`,
+      [req.tenantId, order.id, payment_method || 'cash', totalAmount, txRef, paymentStatus]
+    );
+
+    // Auto-create customer if not exists
+    await client.query(
+      `INSERT INTO customers(tenant_id, email, name) VALUES($1, $2, $3) ON CONFLICT (tenant_id, email) DO NOTHING`,
+      [req.tenantId, customer_email, customer_email.split('@')[0]]
+    );
 
     await client.query('COMMIT');
-    res.status(201).json(orderResult.rows[0]);
+
+    // Only send email immediately for non-VNPay payments (VNPay sends after return/IPN)
+    if (!isVnpay) {
+      const tenantResult = await db.query('SELECT name FROM tenants WHERE id = $1', [req.tenantId]);
+      const storeName = tenantResult.rows[0]?.name || 'POS Store';
+      sendReceiptEmail({ to: customer_email, storeName, order, items: orderItems })
+        .catch(err => console.error('Email send error:', err.message));
+    }
+
+    res.status(201).json({ ...order, items: orderItems });
   } catch (err) {
     await client.query('ROLLBACK');
     res.status(400).json({ message: err.message });

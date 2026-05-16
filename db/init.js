@@ -2,7 +2,7 @@ const { Client } = require('pg');
 require('dotenv').config();
 
 const client = new Client({
-  connectionString: process.env.DATABASE_URL_LOCAL,
+  connectionString: process.env.DATABASE_URL || process.env.DATABASE_URL_LOCAL,
 });
 
 async function initDB() {
@@ -10,47 +10,121 @@ async function initDB() {
     await client.connect();
     console.log('Connected to PostgreSQL');
 
-    // Create tables
+    // Drop existing tables for clean reset
     await client.query(`
-      CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
-        username VARCHAR(100) UNIQUE NOT NULL,
-        password VARCHAR(255) NOT NULL,
-        role VARCHAR(50) NOT NULL DEFAULT 'customer'
-      );
+      DROP TABLE IF EXISTS payments CASCADE;
+      DROP TABLE IF EXISTS order_items CASCADE;
+      DROP TABLE IF EXISTS orders CASCADE;
+      DROP TABLE IF EXISTS products CASCADE;
+      DROP TABLE IF EXISTS categories CASCADE;
+      DROP TABLE IF EXISTS customers CASCADE;
+      DROP TABLE IF EXISTS users CASCADE;
+      DROP TABLE IF EXISTS tenants CASCADE;
     `);
+    console.log('Dropped existing tables');
 
+    // Tenants
     await client.query(`
-      CREATE TABLE IF NOT EXISTS products (
+      CREATE TABLE tenants (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
-        price NUMERIC(12, 2) NOT NULL,
+        slug VARCHAR(100) UNIQUE NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+
+    // Users (admin, manager, staff)
+    await client.query(`
+      CREATE TABLE users (
+        id SERIAL PRIMARY KEY,
+        tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+        username VARCHAR(100) NOT NULL,
+        password VARCHAR(255) NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        role VARCHAR(50) NOT NULL DEFAULT 'staff',
+        created_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(tenant_id, username)
+      );
+    `);
+
+    // Categories
+    await client.query(`
+      CREATE TABLE categories (
+        id SERIAL PRIMARY KEY,
+        tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+        name VARCHAR(255) NOT NULL,
         description TEXT,
-        category VARCHAR(100),
-        stock INTEGER DEFAULT 0
+        created_at TIMESTAMP DEFAULT NOW()
       );
     `);
 
+    // Products
     await client.query(`
-      CREATE TABLE IF NOT EXISTS orders (
+      CREATE TABLE products (
         id SERIAL PRIMARY KEY,
-        user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
-        total NUMERIC(12, 2) NOT NULL,
-        status VARCHAR(50) NOT NULL DEFAULT 'pending',
-        payment_id VARCHAR(255)
+        tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+        category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,
+        name VARCHAR(255) NOT NULL,
+        description TEXT,
+        price NUMERIC(12, 2) NOT NULL,
+        stock_quantity INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT NOW()
       );
     `);
 
+    // Customers
     await client.query(`
-      CREATE TABLE IF NOT EXISTS order_items (
+      CREATE TABLE customers (
         id SERIAL PRIMARY KEY,
-        order_id INTEGER REFERENCES orders(id) ON DELETE CASCADE,
+        tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+        email VARCHAR(255) NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(tenant_id, email)
+      );
+    `);
+
+    // Orders
+    await client.query(`
+      CREATE TABLE orders (
+        id SERIAL PRIMARY KEY,
+        tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+        cashier_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        customer_email VARCHAR(255),
+        total_amount NUMERIC(12, 2) NOT NULL DEFAULT 0,
+        status VARCHAR(50) DEFAULT 'completed',
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+
+    // Order Items (snapshot product info at time of purchase)
+    await client.query(`
+      CREATE TABLE order_items (
+        id SERIAL PRIMARY KEY,
+        order_id INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
         product_id INTEGER REFERENCES products(id) ON DELETE SET NULL,
-        quantity INTEGER NOT NULL DEFAULT 1
+        product_name VARCHAR(255) NOT NULL,
+        product_price NUMERIC(12, 2) NOT NULL,
+        quantity INTEGER NOT NULL DEFAULT 1,
+        subtotal NUMERIC(12, 2) NOT NULL
       );
     `);
 
-    console.log('Database initialized successfully');
+    // Payments
+    await client.query(`
+      CREATE TABLE payments (
+        id SERIAL PRIMARY KEY,
+        tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+        order_id INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+        method VARCHAR(50) NOT NULL DEFAULT 'cash',
+        amount NUMERIC(12, 2) NOT NULL,
+        transaction_ref VARCHAR(255),
+        status VARCHAR(50) DEFAULT 'completed',
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+
+    console.log('All tables created successfully');
   } catch (err) {
     console.error('Error initializing database:', err);
   } finally {

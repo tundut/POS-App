@@ -3,22 +3,151 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>POS System</title>
+  <title>POS SaaS — Login</title>
+  <meta name="description" content="Multi-tenant Point of Sale SaaS application. Login or register your store.">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <header>
-    <h1>Point of Sale System</h1>
-    <nav>
-      <a href="login.html">Login</a>
-      <a href="products.html">Products</a>
-      <a href="cart.html">Cart</a>
-    </nav>
-  </header>
-  <main>
-    <h2>Welcome to POS</h2>
-    <p>Select products and checkout.</p>
-  </main>
-  <script src="app.js"></script>
+  <div class="auth-wrapper">
+    <div class="auth-card">
+      <div class="logo">
+        <h1>⚡ POS SaaS</h1>
+        <p>Multi-tenant Point of Sale</p>
+      </div>
+
+      <div class="auth-tabs">
+        <button class="auth-tab active" onclick="showTab('login')">Login</button>
+        <button class="auth-tab" onclick="showTab('register')">Register</button>
+      </div>
+
+      <!-- LOGIN FORM -->
+      <form id="loginForm" onsubmit="handleLogin(event)">
+        <div class="form-group">
+          <label for="loginStore">Store Name</label>
+          <input type="text" id="loginStore" placeholder="e.g. techmart" required>
+        </div>
+        <div class="form-group">
+          <label for="loginUsername">Username</label>
+          <input type="text" id="loginUsername" placeholder="Enter username" required>
+        </div>
+        <div class="form-group">
+          <label for="loginPassword">Password</label>
+          <input type="password" id="loginPassword" placeholder="Enter password" required>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block" id="loginBtn">Sign In</button>
+        <p style="text-align:center;margin-top:1rem;color:var(--text-muted);font-size:0.82rem;">
+          Demo: Store <strong>techmart</strong> · User <strong>admin</strong> · Pass <strong>admin123</strong>
+        </p>
+      </form>
+
+      <!-- REGISTER FORM -->
+      <form id="registerForm" onsubmit="handleRegister(event)" style="display:none;">
+        <div class="form-group">
+          <label for="regStore">Store Name</label>
+          <input type="text" id="regStore" placeholder="Your shop or company name" required>
+        </div>
+        <div class="form-group">
+          <label for="regName">Your Full Name</label>
+          <input type="text" id="regName" placeholder="e.g. John Doe" required>
+        </div>
+        <div class="form-group">
+          <label for="regUsername">Username</label>
+          <input type="text" id="regUsername" placeholder="Choose a username" required>
+        </div>
+        <div class="form-group">
+          <label for="regPassword">Password</label>
+          <input type="password" id="regPassword" placeholder="Choose a password" required>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block" id="regBtn">Create Store Account</button>
+      </form>
+
+      <div id="authError" style="color:var(--danger);text-align:center;margin-top:1rem;font-size:0.88rem;display:none;"></div>
+    </div>
+  </div>
+
+  <script>
+    // Redirect if already logged in
+    if (localStorage.getItem('pos_token')) {
+      window.location.href = '/dashboard';
+    }
+
+    function showTab(tab) {
+      document.querySelectorAll('.auth-tab').forEach((t, i) => t.classList.toggle('active', (tab === 'login' ? i === 0 : i === 1)));
+      document.getElementById('loginForm').style.display = tab === 'login' ? 'block' : 'none';
+      document.getElementById('registerForm').style.display = tab === 'register' ? 'block' : 'none';
+      document.getElementById('authError').style.display = 'none';
+    }
+
+    function showError(msg) {
+      const el = document.getElementById('authError');
+      el.textContent = msg;
+      el.style.display = 'block';
+    }
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      const btn = document.getElementById('loginBtn');
+      btn.textContent = 'Signing in...';
+      btn.disabled = true;
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            storeName: document.getElementById('loginStore').value.trim(),
+            username: document.getElementById('loginUsername').value.trim(),
+            password: document.getElementById('loginPassword').value,
+          }),
+        });
+        const data = await res.json();
+        if (res.ok) {
+          localStorage.setItem('pos_token', data.token);
+          localStorage.setItem('pos_user', JSON.stringify(data.user));
+          localStorage.setItem('pos_tenant', JSON.stringify(data.tenant));
+          window.location.href = '/dashboard';
+        } else {
+          showError(data.message);
+        }
+      } catch (err) {
+        showError('Network error. Please try again.');
+      } finally {
+        btn.textContent = 'Sign In';
+        btn.disabled = false;
+      }
+    }
+
+    async function handleRegister(e) {
+      e.preventDefault();
+      const btn = document.getElementById('regBtn');
+      btn.textContent = 'Creating...';
+      btn.disabled = true;
+      try {
+        const res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            storeName: document.getElementById('regStore').value.trim(),
+            name: document.getElementById('regName').value.trim(),
+            username: document.getElementById('regUsername').value.trim(),
+            password: document.getElementById('regPassword').value,
+          }),
+        });
+        const data = await res.json();
+        if (res.ok) {
+          localStorage.setItem('pos_token', data.token);
+          localStorage.setItem('pos_user', JSON.stringify(data.user));
+          localStorage.setItem('pos_tenant', JSON.stringify(data.tenant));
+          window.location.href = '/dashboard';
+        } else {
+          showError(data.message);
+        }
+      } catch (err) {
+        showError('Network error. Please try again.');
+      } finally {
+        btn.textContent = 'Create Store Account';
+        btn.disabled = false;
+      }
+    }
+  </script>
 </body>
 </html>
