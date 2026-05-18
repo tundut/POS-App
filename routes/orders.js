@@ -1,7 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const { auth } = require('../middleware/auth');
-const { sendReceiptEmail } = require('../utils/email');
+const { sendReceiptEmail } = require('../utils/emailService');
 const router = express.Router();
 
 // GET all orders for tenant

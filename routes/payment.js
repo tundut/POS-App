@@ -4,7 +4,7 @@ const qs = require("qs");
 const moment = require("moment");
 const db = require("../db");
 const { auth } = require("../middleware/auth");
-const { sendReceiptEmail } = require("../utils/email");
+const { sendReceiptEmail } = require("../utils/emailService");
 const router = express.Router();
 
 const vnp_TmnCode = process.env.VNP_TMN_CODE;

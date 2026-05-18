@@ -1,0 +1,76 @@
+CREATE TABLE IF NOT EXISTS tenants (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  slug VARCHAR(100) UNIQUE NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS users (
+  id SERIAL PRIMARY KEY,
+  tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  username VARCHAR(100) NOT NULL,
+  password VARCHAR(255) NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  role VARCHAR(50) NOT NULL DEFAULT 'staff',
+  created_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(tenant_id, username)
+);
+
+CREATE TABLE IF NOT EXISTS categories (
+  id SERIAL PRIMARY KEY,
+  tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  name VARCHAR(255) NOT NULL,
+  description TEXT,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS products (
+  id SERIAL PRIMARY KEY,
+  tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,
+  name VARCHAR(255) NOT NULL,
+  description TEXT,
+  price NUMERIC(12, 2) NOT NULL,
+  stock_quantity INTEGER DEFAULT 0,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS customers (
+  id SERIAL PRIMARY KEY,
+  tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  email VARCHAR(255) NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(tenant_id, email)
+);
+
+CREATE TABLE IF NOT EXISTS orders (
+  id SERIAL PRIMARY KEY,
+  tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  cashier_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  customer_email VARCHAR(255),
+  total_amount NUMERIC(12, 2) NOT NULL DEFAULT 0,
+  status VARCHAR(50) DEFAULT 'completed',
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS order_items (
+  id SERIAL PRIMARY KEY,
+  order_id INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  product_id INTEGER REFERENCES products(id) ON DELETE SET NULL,
+  product_name VARCHAR(255) NOT NULL,
+  product_price NUMERIC(12, 2) NOT NULL,
+  quantity INTEGER NOT NULL DEFAULT 1,
+  subtotal NUMERIC(12, 2) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS payments (
+  id SERIAL PRIMARY KEY,
+  tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  order_id INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  method VARCHAR(50) NOT NULL DEFAULT 'cash',
+  amount NUMERIC(12, 2) NOT NULL,
+  transaction_ref VARCHAR(255),
+  status VARCHAR(50) DEFAULT 'completed',
+  created_at TIMESTAMP DEFAULT NOW()
+);

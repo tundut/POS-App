@@ -10,6 +10,7 @@
     "db:reset": "node db/init.js && node db/seed.js"
   },
   "dependencies": {
+    "@aws-sdk/client-ses": "^3.1048.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
@@ -18,6 +19,7 @@
     "moment": "^2.30.1",
     "nodemailer": "^6.9.4",
     "pg": "^8.11.2",
+    "puppeteer": "^25.0.2",
     "qs": "^6.15.1"
   },
   "devDependencies": {
