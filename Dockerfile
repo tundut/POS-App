@@ -4,6 +4,18 @@ FROM node:20-alpine
 # Thiết lập thư mục làm việc trong container
 WORKDIR /app
 
+# Cài chromium và dependencies cho puppeteer
+RUN apk add --no-cache \
+    chromium \
+    nss \
+    freetype \
+    harfbuzz \
+    ca-certificates \
+    ttf-freefont
+
+# Cho puppeteer dùng chromium system
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+
 # Copy file package.json và package-lock.json (nếu có) vào container
 COPY package*.json ./
 

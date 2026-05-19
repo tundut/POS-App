@@ -578,6 +578,10 @@ button {
   animation: fadeUp 0.3s ease;
 }
 
+.modal::-webkit-scrollbar {
+  display: none;
+}
+
 .modal h2 {
   font-size: 1.2rem;
   margin-bottom: 1.5rem;

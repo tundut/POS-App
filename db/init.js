@@ -68,7 +68,8 @@ async function initDB() {
         description TEXT,
         price NUMERIC(12, 2) NOT NULL,
         stock_quantity INTEGER DEFAULT 0,
-        created_at TIMESTAMP DEFAULT NOW()
+        created_at TIMESTAMP DEFAULT NOW(),
+        image_url VARCHAR(255)
       );
     `);
 

@@ -20,10 +20,14 @@ if (!state.token || !state.user) {
 function $(id) { return document.getElementById(id); }
 
 async function api(path, opts = {}) {
+  const isFormData = opts.body instanceof FormData;
+  const headers = { 'Authorization': 'Bearer ' + state.token, ...opts.headers };
+  if (!isFormData && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
+
   const res = await fetch('/api' + path, {
     ...opts,
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.token, ...opts.headers },
-    body: opts.body ? JSON.stringify(opts.body) : undefined,
+    headers,
+    body: isFormData ? opts.body : (opts.body ? JSON.stringify(opts.body) : undefined),
   });
   const data = await res.json().catch(() => ({}));
   if (res.status === 401) { logout(); return; }
@@ -162,6 +166,7 @@ async function renderPOS() {
 function renderPOSProductGrid(products) {
   $('posProductGrid').innerHTML = products.length === 0 ? '<div class="empty-state"><p>No products available</p></div>' :
     products.map(p => `<div class="product-card" onclick='addToCart(${JSON.stringify({ id: p.id, name: p.name, price: parseFloat(p.price) })})'>
+      ${p.image_url ? `<div class="p-image" style="margin-bottom:8px;"><img src="${p.image_url}" alt="${p.name.replace(/"/g, '&quot;')}" style="width:100%; height:120px; object-fit:cover; border-radius:8px; background:var(--bg-input);"></div>` : ''}
       <div class="p-name">${p.name}</div>
       <div class="p-price">${formatCurrency(p.price)}</div>
       <div class="p-cat">${p.category_name || 'Uncategorized'}</div>
@@ -353,15 +358,45 @@ async function showAddProduct() {
     <div class="form-group"><label>Name</label><input type="text" id="prodName" placeholder="Product name"></div>
     <div class="form-group"><label>Description</label><input type="text" id="prodDesc" placeholder="Optional"></div>
     <div class="form-row">
-      <div class="form-group"><label>Price</label><input type="number" id="prodPrice" step="0.01" placeholder="0.00"></div>
-      <div class="form-group"><label>Stock</label><input type="number" id="prodStock" placeholder="0"></div>
+      <div class="form-group"><label>Price</label><input type="number" id="prodPrice" placeholder="0" step="100" min="0"></div>
+      <div class="form-group"><label>Stock</label><input type="number" id="prodStock" placeholder="0" step="1" min="0"></div>
     </div>
     <div class="form-group"><label>Category</label><select id="prodCat"><option value="">— None —</option>${opts}</select></div>
+    <div class="form-group">
+      <label>Product Image</label>
+      <input type="file" id="prodImage" accept="image/*" onchange="previewImage(this, 'prodImagePreview')">
+      <div id="prodImagePreview" style="margin-top: 10px; width: 100%;"></div>
+    </div>
     <div class="modal-actions"><button class="btn btn-ghost" onclick="hideModal()">Cancel</button><button class="btn btn-primary" onclick="addProduct()">Add</button></div>`);
 }
+function previewImage(input, previewId) {
+  const preview = document.getElementById(previewId);
+  if (input.files && input.files[0]) {
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      preview.innerHTML = `<img src="${e.target.result}" style="width: 100%; border-radius: 8px;">`;
+    }
+    reader.readAsDataURL(input.files[0]);
+  } else {
+    preview.innerHTML = '';
+  }
+}
+
 async function addProduct() {
   try {
-    await api('/products', { method: 'POST', body: { name: $('prodName').value, description: $('prodDesc').value, price: parseFloat($('prodPrice').value), stock_quantity: parseInt($('prodStock').value) || 0, category_id: $('prodCat').value || null } });
+    const formData = new FormData();
+    formData.append('name', $('prodName').value);
+    formData.append('description', $('prodDesc').value);
+    formData.append('price', parseFloat($('prodPrice').value));
+    formData.append('stock_quantity', parseInt($('prodStock').value) || 0);
+    if ($('prodCat').value) formData.append('category_id', $('prodCat').value);
+
+    const fileInput = $('prodImage');
+    if (fileInput.files.length > 0) {
+      formData.append('image', fileInput.files[0]);
+    }
+
+    await api('/products', { method: 'POST', body: formData });
     hideModal(); toast('Product added'); renderProducts();
   } catch (e) { toast(e.message, 'error'); }
 }
@@ -373,15 +408,34 @@ async function showUpdateProduct(encoded) {
     <div class="form-group"><label>Name</label><input type="text" id="uprodName" value="${(prod.name || '').replace(/"/g, '&quot;')}"></div>
     <div class="form-group"><label>Description</label><input type="text" id="uprodDesc" value="${(prod.description || '').replace(/"/g, '&quot;')}"></div>
     <div class="form-row">
-      <div class="form-group"><label>Price</label><input type="number" id="uprodPrice" step="0.01" value="${prod.price}"></div>
-      <div class="form-group"><label>Stock</label><input type="number" id="uprodStock" value="${prod.stock_quantity}"></div>
+      <div class="form-group"><label>Price</label><input type="number" id="uprodPrice" step="1000" min="0" value="${prod.price.toFixed(0)}"></div>
+      <div class="form-group"><label>Stock</label><input type="number" id="uprodStock" step="1" min="0" value="${prod.stock_quantity}"></div>
     </div>
     <div class="form-group"><label>Category</label><select id="uprodCat"><option value="">— None —</option>${opts}</select></div>
+    <div class="form-group">
+      <label>Product Image</label>
+      <input type="file" id="uprodImage" accept="image/*" onchange="previewImage(this, 'uprodImagePreview')">
+      <div id="uprodImagePreview" style="margin-top: 10px; width: 100%">
+        ${prod.image_url ? `<img src="${prod.image_url}" style="width: 100%; border-radius: 8px;">` : ''}
+      </div>
+    </div>
     <div class="modal-actions"><button class="btn btn-ghost" onclick="hideModal()">Cancel</button><button class="btn btn-primary" onclick="updateProduct(${prod.id})">Save</button></div>`);
 }
 async function updateProduct(id) {
   try {
-    await api('/products/' + id, { method: 'PUT', body: { name: $('uprodName').value, description: $('uprodDesc').value, price: parseFloat($('uprodPrice').value), stock_quantity: parseInt($('uprodStock').value) || 0, category_id: $('uprodCat').value || null } });
+    const formData = new FormData();
+    formData.append('name', $('uprodName').value);
+    formData.append('description', $('uprodDesc').value);
+    formData.append('price', parseFloat($('uprodPrice').value));
+    formData.append('stock_quantity', parseInt($('uprodStock').value) || 0);
+    if ($('uprodCat').value) formData.append('category_id', $('uprodCat').value);
+
+    const fileInput = $('uprodImage');
+    if (fileInput.files.length > 0) {
+      formData.append('image', fileInput.files[0]);
+    }
+
+    await api('/products/' + id, { method: 'PUT', body: formData });
     hideModal(); toast('Product updated'); renderProducts();
   } catch (e) { toast(e.message, 'error'); }
 }
@@ -470,7 +524,7 @@ function showUpdateUser(encoded, viewRole) {
     <div class="form-group"><label>Full Name</label><input type="text" id="uuserName" value="${(u.name || '').replace(/"/g, '&quot;')}"></div>
     <div class="form-group"><label>Username</label><input type="text" id="uuserUsername" value="${(u.username || '').replace(/"/g, '&quot;')}"></div>
     <div class="form-group"><label>New Password (Optional)</label><input type="password" id="uuserPassword" placeholder="Leave blank to keep current"></div>
-    <div class="form-group"><label>Role</label><select id="uuserRole"><option value="staff" ${u.role==='staff'?'selected':''}>Staff</option><option value="manager" ${u.role==='manager'?'selected':''}>Manager</option><option value="admin" ${u.role==='admin'?'selected':''}>Admin</option></select></div>
+    <div class="form-group"><label>Role</label><select id="uuserRole"><option value="staff" ${u.role === 'staff' ? 'selected' : ''}>Staff</option><option value="manager" ${u.role === 'manager' ? 'selected' : ''}>Manager</option><option value="admin" ${u.role === 'admin' ? 'selected' : ''}>Admin</option></select></div>
     <div class="modal-actions"><button class="btn btn-ghost" onclick="hideModal()">Cancel</button><button class="btn btn-primary" onclick="updateUser(${u.id}, '${viewRole}')">Save</button></div>`);
 }
 async function updateUser(id, viewRole) {

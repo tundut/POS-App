@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS products (
   description TEXT,
   price NUMERIC(12, 2) NOT NULL,
   stock_quantity INTEGER DEFAULT 0,
+  image_url VARCHAR(255),
   created_at TIMESTAMP DEFAULT NOW()
 );
 
