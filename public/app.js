@@ -166,7 +166,7 @@ async function renderPOS() {
 function renderPOSProductGrid(products) {
   $('posProductGrid').innerHTML = products.length === 0 ? '<div class="empty-state"><p>No products available</p></div>' :
     products.map(p => `<div class="product-card" onclick='addToCart(${JSON.stringify({ id: p.id, name: p.name, price: parseFloat(p.price) })})'>
-      ${p.image_url ? `<div class="p-image" style="margin-bottom:8px;"><img src="${p.image_url}" alt="${p.name.replace(/"/g, '&quot;')}" style="width:100%; height:120px; object-fit:cover; border-radius:8px; background:var(--bg-input);"></div>` : ''}
+      ${p.image_url ? `<div class="p-image" style="margin-bottom:8px;"><img src="${p.image_url}" alt="${p.name.replace(/"/g, '&quot;')}" style="width:100%; height:120px; object-fit:cover; border-radius:8px; background:var(--bg-input);"></div>` : `<div class="p-image" style="margin-bottom:8px;"><img src="https://t4.ftcdn.net/jpg/04/70/29/97/360_F_470299797_UD0eoVMMSUbHCcNJCdv2t8B2g1GVqYgs.jpg" alt="no photo" style="width:100%; height:120px; object-fit:cover; border-radius:8px; background:var(--bg-input);"></div>`}
       <div class="p-name">${p.name}</div>
       <div class="p-price">${formatCurrency(p.price)}</div>
       <div class="p-cat">${p.category_name || 'Uncategorized'}</div>
@@ -408,7 +408,7 @@ async function showUpdateProduct(encoded) {
     <div class="form-group"><label>Name</label><input type="text" id="uprodName" value="${(prod.name || '').replace(/"/g, '&quot;')}"></div>
     <div class="form-group"><label>Description</label><input type="text" id="uprodDesc" value="${(prod.description || '').replace(/"/g, '&quot;')}"></div>
     <div class="form-row">
-      <div class="form-group"><label>Price</label><input type="number" id="uprodPrice" step="1000" min="0" value="${prod.price.toFixed(0)}"></div>
+      <div class="form-group"><label>Price</label><input type="number" id="uprodPrice" step="1000" min="0" value="${parseFloat(prod.price).toFixed(0)}"></div>
       <div class="form-group"><label>Stock</label><input type="number" id="uprodStock" step="1" min="0" value="${prod.stock_quantity}"></div>
     </div>
     <div class="form-group"><label>Category</label><select id="uprodCat"><option value="">— None —</option>${opts}</select></div>

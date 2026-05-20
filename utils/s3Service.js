@@ -1,4 +1,4 @@
-const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
+const { S3Client, PutObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 require('dotenv').config();
 
 const s3Client = new S3Client({
@@ -39,6 +39,33 @@ async function uploadBufferToS3(buffer, fileName, mimeType = 'application/pdf') 
   return `https://${bucketName}.s3.${process.env.AWS_REGION}.amazonaws.com/${fileName}`;
 }
 
+async function deleteFileFromS3(fileUrl) {
+  if (!fileUrl) return;
+  const bucketName = process.env.AWS_S3_BUCKET;
+  if (!bucketName) {
+    console.warn('AWS_S3_BUCKET is not defined in environment variables');
+    return;
+  }
+
+  try {
+    // Extract the key from the S3 URL
+    // Expected format: https://bucket-name.s3.region.amazonaws.com/key
+    const urlParts = new URL(fileUrl);
+    const key = decodeURIComponent(urlParts.pathname.substring(1)); // Remove leading slash
+
+    const params = {
+      Bucket: bucketName,
+      Key: key,
+    };
+
+    await s3Client.send(new DeleteObjectCommand(params));
+    console.log(`Deleted S3 object: ${key}`);
+  } catch (error) {
+    console.error(`Failed to delete S3 object from URL ${fileUrl}:`, error);
+  }
+}
+
 module.exports = {
-  uploadBufferToS3
+  uploadBufferToS3,
+  deleteFileFromS3
 };

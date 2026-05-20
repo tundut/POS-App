@@ -1,58 +1,14 @@
 version: '3.8'
 
 services:
-  # 1. Database (PostgreSQL)
-  pos_db:
-    image: postgres:15-alpine
-    container_name: pos_db
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: 123456
-      POSTGRES_DB: pos_db
-    ports:
-      - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
-    restart: unless-stopped
-
   # 2. Node.js Application
   app:
     build: .
     container_name: pos_app
-    depends_on:
-      pos_db:
-        condition: service_healthy
     ports:
       - "5000:5000"
-    environment:
-      # Dùng DATABASE_URL_LOCAL để kết nối nội bộ trong Docker, tránh kích hoạt SSL (gây lỗi cho local pg)
-      - DATABASE_URL_LOCAL=postgresql://postgres:123456@pos_db:5432/pos_db
     env_file:
       - .env # Load các biến môi trường khác (JWT, SMTP, VNPAY...) từ file .env
-    restart: unless-stopped
-
-  # 3. Ngrok Tunnel
-  ngrok:
-    image: ngrok/ngrok:latest
-    container_name: pos_ngrok
-    depends_on:
-      - app
-    ports:
-      - "4040:4040" # Port để xem dashboard của ngrok (http://localhost:4040)
-    environment:
-      - NGROK_AUTHTOKEN=${NGROK_AUTHTOKEN}
-    command:
-      # Lệnh yêu cầu ngrok forward traffic tới service "app" ở port 5000
-      - "http"
-      - "app:5000"
-    env_file:
-      - .env
     restart: unless-stopped
 
 volumes:

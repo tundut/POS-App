@@ -2,7 +2,7 @@ const express = require('express');
 const db = require('../db');
 const { auth, authorize } = require('../middleware/auth');
 const multer = require('multer');
-const { uploadBufferToS3 } = require('../utils/s3Service');
+const { uploadBufferToS3, deleteFileFromS3 } = require('../utils/s3Service');
 const router = express.Router();
 
 const upload = multer({ storage: multer.memoryStorage() });
@@ -51,9 +51,15 @@ router.post('/', auth, authorize('admin', 'manager'), upload.single('image'), as
 router.put('/:id', auth, authorize('admin', 'manager'), upload.single('image'), async (req, res) => {
   const { name, description, price, stock_quantity, category_id } = req.body;
   let image_url = undefined; // undefined ensures COALESCE ignores it if no new image is provided
+  let old_image_url = null;
 
   try {
     if (req.file) {
+      const oldProduct = await db.query('SELECT image_url FROM products WHERE id = $1 AND tenant_id = $2', [req.params.id, req.tenantId]);
+      if (oldProduct.rows.length > 0) {
+        old_image_url = oldProduct.rows[0].image_url;
+      }
+
       const fileName = `products/${req.tenantId}-${Date.now()}-${req.file.originalname}`;
       image_url = await uploadBufferToS3(req.file.buffer, fileName, req.file.mimetype);
     }
@@ -70,6 +76,12 @@ router.put('/:id', auth, authorize('admin', 'manager'), upload.single('image'), 
       [name, description, price, stock_quantity, category_id, image_url, req.params.id, req.tenantId]
     );
     if (result.rows.length === 0) return res.status(404).json({ message: 'Product not found' });
+    
+    // Delete the old image from S3 if a new one was uploaded
+    if (req.file && old_image_url && old_image_url.includes('amazonaws.com')) {
+      await deleteFileFromS3(old_image_url).catch(err => console.error('Error deleting old image:', err));
+    }
+    
     res.json(result.rows[0]);
   } catch (err) {
     res.status(400).json({ message: err.message });
@@ -84,6 +96,12 @@ router.delete('/:id', auth, authorize('admin', 'manager'), async (req, res) => {
       [req.params.id, req.tenantId]
     );
     if (result.rows.length === 0) return res.status(404).json({ message: 'Product not found' });
+    
+    // Delete the image from S3 if it exists
+    if (result.rows[0].image_url && result.rows[0].image_url.includes('amazonaws.com')) {
+      await deleteFileFromS3(result.rows[0].image_url).catch(err => console.error('Error deleting image:', err));
+    }
+
     res.json({ message: 'Product deleted' });
   } catch (err) {
     res.status(400).json({ message: err.message });
