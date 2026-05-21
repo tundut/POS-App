@@ -3,6 +3,9 @@ require('dotenv').config();
 
 const client = new Client({
   connectionString: process.env.DATABASE_URL || process.env.DATABASE_URL_LOCAL,
+  ssl: process.env.DATABASE_URL
+    ? { rejectUnauthorized: false }
+    : false,
 });
 
 async function initDB() {

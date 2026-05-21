@@ -14,7 +14,7 @@ router.get('/', auth, async (req, res) => {
       db.query("SELECT COUNT(*)::int AS count FROM users WHERE tenant_id = $1 AND role = 'staff'", [tid]),
       db.query("SELECT COUNT(*)::int AS count FROM users WHERE tenant_id = $1 AND role = 'manager'", [tid]),
       db.query('SELECT COUNT(*)::int AS count FROM orders WHERE tenant_id = $1', [tid]),
-      db.query('SELECT COALESCE(SUM(total_amount), 0)::numeric AS total FROM orders WHERE tenant_id = $1', [tid]),
+      db.query('SELECT COALESCE(SUM(total_amount), 0)::numeric AS total FROM orders WHERE tenant_id = $1 AND status = \'completed\'', [tid]),
     ]);
 
     res.json({

@@ -5,6 +5,9 @@ require('dotenv').config();
 async function seedDB() {
   const client = new Client({
     connectionString: process.env.DATABASE_URL || process.env.DATABASE_URL_LOCAL,
+    ssl: process.env.DATABASE_URL
+      ? { rejectUnauthorized: false }
+      : false,
   });
 
   try {
