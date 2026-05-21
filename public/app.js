@@ -64,7 +64,15 @@ function formatCurrency(v) {
     currency: 'VND'
   }).format(v);
 }
-function formatDate(d) { return new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }); }
+function formatDate(d) {
+  return new Date(d).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
 
 function roleBadge(role) {
   const colors = { admin: 'danger', manager: 'warning', staff: 'info' };
@@ -256,6 +264,7 @@ async function submitOrder() {
       toast('Order #' + order.id + ' completed! Receipt sent to ' + email);
       showReceipt(order);
       state.cart = [];
+      renderCartItems();
     }
   } catch (e) { toast(e.message, 'error'); }
 }

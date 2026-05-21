@@ -29,7 +29,7 @@ async function initDB() {
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
         slug VARCHAR(100) UNIQUE NOT NULL,
-        created_at TIMESTAMP DEFAULT NOW()
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       );
     `);
 
@@ -42,7 +42,7 @@ async function initDB() {
         password VARCHAR(255) NOT NULL,
         name VARCHAR(255) NOT NULL,
         role VARCHAR(50) NOT NULL DEFAULT 'staff',
-        created_at TIMESTAMP DEFAULT NOW(),
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
         UNIQUE(tenant_id, username)
       );
     `);
@@ -54,7 +54,7 @@ async function initDB() {
         tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
         name VARCHAR(255) NOT NULL,
         description TEXT,
-        created_at TIMESTAMP DEFAULT NOW()
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       );
     `);
 
@@ -68,7 +68,7 @@ async function initDB() {
         description TEXT,
         price NUMERIC(12, 2) NOT NULL,
         stock_quantity INTEGER DEFAULT 0,
-        created_at TIMESTAMP DEFAULT NOW(),
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
         image_url VARCHAR(255)
       );
     `);
@@ -80,7 +80,7 @@ async function initDB() {
         tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
         email VARCHAR(255) NOT NULL,
         name VARCHAR(255) NOT NULL,
-        created_at TIMESTAMP DEFAULT NOW(),
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
         UNIQUE(tenant_id, email)
       );
     `);
@@ -94,7 +94,7 @@ async function initDB() {
         customer_email VARCHAR(255),
         total_amount NUMERIC(12, 2) NOT NULL DEFAULT 0,
         status VARCHAR(50) DEFAULT 'completed',
-        created_at TIMESTAMP DEFAULT NOW()
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       );
     `);
 
@@ -121,7 +121,7 @@ async function initDB() {
         amount NUMERIC(12, 2) NOT NULL,
         transaction_ref VARCHAR(255),
         status VARCHAR(50) DEFAULT 'completed',
-        created_at TIMESTAMP DEFAULT NOW()
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       );
     `);
 

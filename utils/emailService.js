@@ -13,7 +13,13 @@ const ses = new SESClient({
 
 const sendReceiptEmail = async ({ to, storeName, order, items }) => {
   const date = new Date(order.created_at || Date.now()).toLocaleString('en-US', {
-    dateStyle: 'medium', timeStyle: 'short',
+    timeZone: 'Asia/Ho_Chi_Minh',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true
   });
 
   const itemRows = items.map(item => `

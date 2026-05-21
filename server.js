@@ -31,6 +31,31 @@ app.get('/dashboard', (req, res) => {
   res.sendFile(__dirname + '/public/dashboard.html');
 });
 
+// Background job to fail pending orders older than 15 minutes
+setInterval(async () => {
+  try {
+    const result = await db.query(`
+      UPDATE orders 
+      SET status = 'failed' 
+      WHERE status = 'pending' 
+        AND created_at < NOW() - INTERVAL '15 minutes'
+      RETURNING id
+    `);
+    
+    if (result.rows.length > 0) {
+      const orderIds = result.rows.map(r => r.id);
+      await db.query(`
+        UPDATE payments 
+        SET status = 'failed' 
+        WHERE order_id = ANY($1) AND status = 'pending'
+      `, [orderIds]);
+      console.log(`Failed ${orderIds.length} pending orders (timeout > 15m)`);
+    }
+  } catch (err) {
+    console.error('Error auto-failing pending orders:', err.message);
+  }
+}, 60 * 1000); // Check every minute
+
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
