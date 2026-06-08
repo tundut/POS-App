@@ -26,7 +26,12 @@ app.use('/api/users', require('./routes/users'));
 app.use('/api/orders', require('./routes/orders'));
 app.use('/api/payment', require('./routes/payment'));
 
-// SPA fallback — serve dashboard for authenticated routes
+// Health check path 
+app.get('/health', (req, res) => { 
+  res.status(200).send('OK'); 
+});
+
+// SPA fallback — serve dashboard for authenticated routes\
 app.get('/dashboard', (req, res) => {
   res.sendFile(__dirname + '/public/dashboard.html');
 });

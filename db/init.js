@@ -107,6 +107,7 @@ async function initDB() {
         id SERIAL PRIMARY KEY,
         order_id INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
         product_id INTEGER REFERENCES products(id) ON DELETE SET NULL,
+        tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
         product_name VARCHAR(255) NOT NULL,
         product_price NUMERIC(12, 2) NOT NULL,
         quantity INTEGER NOT NULL DEFAULT 1,

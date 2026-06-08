@@ -19,19 +19,44 @@ if (!state.token || !state.user) {
 // ── HELPERS ──
 function $(id) { return document.getElementById(id); }
 
+// const API_BASE =
+//   window.location.hostname === 'localhost'
+//     ? 'http://localhost:5000/api'
+//     : 'https://api.yourdomain.com/api';
+
+const API_BASE = '/api';
+
 async function api(path, opts = {}) {
   const isFormData = opts.body instanceof FormData;
-  const headers = { 'Authorization': 'Bearer ' + state.token, ...opts.headers };
-  if (!isFormData && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
 
-  const res = await fetch('/api' + path, {
+  const headers = {
+    Authorization: 'Bearer ' + state.token,
+    ...opts.headers
+  };
+
+  if (!isFormData && !headers['Content-Type']) {
+    headers['Content-Type'] = 'application/json';
+  }
+
+  const res = await fetch(API_BASE + path, {
     ...opts,
     headers,
-    body: isFormData ? opts.body : (opts.body ? JSON.stringify(opts.body) : undefined),
+    body: isFormData
+      ? opts.body
+      : (opts.body ? JSON.stringify(opts.body) : undefined)
   });
+
   const data = await res.json().catch(() => ({}));
-  if (res.status === 401) { logout(); return; }
-  if (!res.ok) throw new Error(data.message || 'Request failed');
+
+  if (res.status === 401) {
+    logout();
+    return;
+  }
+
+  if (!res.ok) {
+    throw new Error(data.message || 'Request failed');
+  }
+
   return data;
 }
 
