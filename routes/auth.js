@@ -72,7 +72,7 @@ router.post('/login', async (req, res) => {
     const tenant = tenantResult.rows[0];
 
     const userResult = await db.query(
-      'SELECT * FROM users WHERE tenant_id = $1 AND username = $2',
+      'SELECT * FROM users WHERE tenant_id = $1 AND username = $2 AND deleted_at IS NULL',
       [tenant.id, username]
     );
     if (userResult.rows.length === 0) {

@@ -7,7 +7,7 @@ const router = express.Router();
 router.get('/', auth, async (req, res) => {
   try {
     const result = await db.query(
-      'SELECT * FROM customers WHERE tenant_id = $1 ORDER BY name', [req.tenantId]
+      'SELECT * FROM customers WHERE tenant_id = $1 AND deleted_at IS NULL ORDER BY name', [req.tenantId]
     );
     res.json(result.rows);
   } catch (err) {
@@ -37,7 +37,7 @@ router.put('/:id', auth, async (req, res) => {
   const { email, name } = req.body;
   try {
     const result = await db.query(
-      'UPDATE customers SET email = COALESCE($1, email), name = COALESCE($2, name) WHERE id = $3 AND tenant_id = $4 RETURNING *',
+      'UPDATE customers SET email = COALESCE($1, email), name = COALESCE($2, name) WHERE id = $3 AND tenant_id = $4 AND deleted_at IS NULL RETURNING *',
       [email, name, req.params.id, req.tenantId]
     );
     if (result.rows.length === 0) return res.status(404).json({ message: 'Customer not found' });
@@ -51,7 +51,7 @@ router.put('/:id', auth, async (req, res) => {
 router.delete('/:id', auth, async (req, res) => {
   try {
     const result = await db.query(
-      'DELETE FROM customers WHERE id = $1 AND tenant_id = $2 RETURNING *',
+      'UPDATE customers SET deleted_at = NOW() WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL RETURNING *',
       [req.params.id, req.tenantId]
     );
     if (result.rows.length === 0) return res.status(404).json({ message: 'Customer not found' });

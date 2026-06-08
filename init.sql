@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS users (
   name VARCHAR(255) NOT NULL,
   role VARCHAR(50) NOT NULL DEFAULT 'staff',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  deleted_at TIMESTAMP WITH TIME ZONE,
   UNIQUE(tenant_id, username)
 );
 
@@ -21,7 +22,8 @@ CREATE TABLE IF NOT EXISTS categories (
   tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   name VARCHAR(255) NOT NULL,
   description TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  deleted_at TIMESTAMP WITH TIME ZONE
 );
 
 CREATE TABLE IF NOT EXISTS products (
@@ -33,7 +35,8 @@ CREATE TABLE IF NOT EXISTS products (
   price NUMERIC(12, 2) NOT NULL,
   stock_quantity INTEGER DEFAULT 0,
   image_url VARCHAR(255),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  deleted_at TIMESTAMP WITH TIME ZONE
 );
 
 CREATE TABLE IF NOT EXISTS customers (
@@ -42,6 +45,7 @@ CREATE TABLE IF NOT EXISTS customers (
   email VARCHAR(255) NOT NULL,
   name VARCHAR(255) NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  deleted_at TIMESTAMP WITH TIME ZONE,
   UNIQUE(tenant_id, email)
 );
 

@@ -46,6 +46,7 @@ async function initDB() {
         name VARCHAR(255) NOT NULL,
         role VARCHAR(50) NOT NULL DEFAULT 'staff',
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        deleted_at TIMESTAMP WITH TIME ZONE,
         UNIQUE(tenant_id, username)
       );
     `);
@@ -57,7 +58,8 @@ async function initDB() {
         tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
         name VARCHAR(255) NOT NULL,
         description TEXT,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        deleted_at TIMESTAMP WITH TIME ZONE
       );
     `);
 
@@ -72,6 +74,7 @@ async function initDB() {
         price NUMERIC(12, 2) NOT NULL,
         stock_quantity INTEGER DEFAULT 0,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        deleted_at TIMESTAMP WITH TIME ZONE,
         image_url VARCHAR(255)
       );
     `);
@@ -84,6 +87,7 @@ async function initDB() {
         email VARCHAR(255) NOT NULL,
         name VARCHAR(255) NOT NULL,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        deleted_at TIMESTAMP WITH TIME ZONE,
         UNIQUE(tenant_id, email)
       );
     `);

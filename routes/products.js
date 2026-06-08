@@ -14,7 +14,7 @@ router.get('/', auth, async (req, res) => {
       `SELECT p.*, c.name AS category_name
        FROM products p
        LEFT JOIN categories c ON c.id = p.category_id
-       WHERE p.tenant_id = $1
+       WHERE p.tenant_id = $1 AND p.deleted_at IS NULL
        ORDER BY p.name`, [req.tenantId]
     );
     res.json(result.rows);
@@ -55,7 +55,7 @@ router.put('/:id', auth, authorize('admin', 'manager'), upload.single('image'), 
 
   try {
     if (req.file) {
-      const oldProduct = await db.query('SELECT image_url FROM products WHERE id = $1 AND tenant_id = $2', [req.params.id, req.tenantId]);
+      const oldProduct = await db.query('SELECT image_url FROM products WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL', [req.params.id, req.tenantId]);
       if (oldProduct.rows.length > 0) {
         old_image_url = oldProduct.rows[0].image_url;
       }
@@ -72,7 +72,7 @@ router.put('/:id', auth, authorize('admin', 'manager'), upload.single('image'), 
          stock_quantity = COALESCE($4, stock_quantity),
          category_id = COALESCE($5, category_id),
          image_url = COALESCE($6, image_url)
-       WHERE id = $7 AND tenant_id = $8 RETURNING *`,
+       WHERE id = $7 AND tenant_id = $8 AND deleted_at IS NULL RETURNING *`,
       [name, description, price, stock_quantity, category_id, image_url, req.params.id, req.tenantId]
     );
     if (result.rows.length === 0) return res.status(404).json({ message: 'Product not found' });
@@ -92,15 +92,10 @@ router.put('/:id', auth, authorize('admin', 'manager'), upload.single('image'), 
 router.delete('/:id', auth, authorize('admin', 'manager'), async (req, res) => {
   try {
     const result = await db.query(
-      'DELETE FROM products WHERE id = $1 AND tenant_id = $2 RETURNING *',
+      'UPDATE products SET deleted_at = NOW() WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL RETURNING *',
       [req.params.id, req.tenantId]
     );
     if (result.rows.length === 0) return res.status(404).json({ message: 'Product not found' });
-    
-    // Delete the image from S3 if it exists
-    if (result.rows[0].image_url && result.rows[0].image_url.includes('amazonaws.com')) {
-      await deleteFileFromS3(result.rows[0].image_url).catch(err => console.error('Error deleting image:', err));
-    }
 
     res.json({ message: 'Product deleted' });
   } catch (err) {

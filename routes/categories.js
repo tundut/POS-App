@@ -7,7 +7,7 @@ const router = express.Router();
 router.get('/', auth, async (req, res) => {
   try {
     const result = await db.query(
-      'SELECT * FROM categories WHERE tenant_id = $1 ORDER BY name', [req.tenantId]
+      'SELECT * FROM categories WHERE tenant_id = $1 AND deleted_at IS NULL ORDER BY name', [req.tenantId]
     );
     res.json(result.rows);
   } catch (err) {
@@ -50,7 +50,7 @@ router.put('/:id', auth, authorize('admin', 'manager'), async (req, res) => {
 router.delete('/:id', auth, authorize('admin', 'manager'), async (req, res) => {
   try {
     const result = await db.query(
-      'DELETE FROM categories WHERE id = $1 AND tenant_id = $2 RETURNING *',
+      'UPDATE categories SET deleted_at = NOW() WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL RETURNING *',
       [req.params.id, req.tenantId]
     );
     if (result.rows.length === 0) return res.status(404).json({ message: 'Category not found' });

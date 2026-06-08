@@ -8,7 +8,7 @@ const router = express.Router();
 router.get('/', auth, authorize('admin'), async (req, res) => {
   const { role } = req.query;
   try {
-    let query = 'SELECT id, tenant_id, username, name, role, created_at FROM users WHERE tenant_id = $1';
+    let query = 'SELECT id, tenant_id, username, name, role, created_at FROM users WHERE tenant_id = $1 AND deleted_at IS NULL';
     const params = [req.tenantId];
 
     if (role) {
@@ -85,7 +85,7 @@ router.delete('/:id', auth, authorize('admin'), async (req, res) => {
   }
   try {
     const result = await db.query(
-      'DELETE FROM users WHERE id = $1 AND tenant_id = $2 RETURNING id, username, name, role',
+      'UPDATE users SET deleted_at = NOW() WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL RETURNING id, username, name, role',
       [req.params.id, req.tenantId]
     );
     if (result.rows.length === 0) return res.status(404).json({ message: 'User not found' });

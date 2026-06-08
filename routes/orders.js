@@ -70,7 +70,7 @@ router.post('/', auth, async (req, res) => {
     // Fetch product info and verify they belong to this tenant
     const productIds = items.map(i => i.product_id);
     const productsResult = await client.query(
-      'SELECT id, name, price FROM products WHERE id = ANY($1) AND tenant_id = $2',
+      'SELECT id, name, price FROM products WHERE id = ANY($1) AND tenant_id = $2 AND deleted_at IS NULL',
       [productIds, req.tenantId]
     );
     const productMap = {};

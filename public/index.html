@@ -68,7 +68,7 @@
   <script>
     // Redirect if already logged in
     if (localStorage.getItem('pos_token')) {
-      window.location.href = '/dashboard';
+      window.location.href = '/dashboard.html';
     }
 
     function showTab(tab) {
@@ -104,7 +104,7 @@
           localStorage.setItem('pos_token', data.token);
           localStorage.setItem('pos_user', JSON.stringify(data.user));
           localStorage.setItem('pos_tenant', JSON.stringify(data.tenant));
-          window.location.href = '/dashboard';
+          window.location.href = '/dashboard.html';
         } else {
           showError(data.message);
         }
@@ -137,7 +137,7 @@
           localStorage.setItem('pos_token', data.token);
           localStorage.setItem('pos_user', JSON.stringify(data.user));
           localStorage.setItem('pos_tenant', JSON.stringify(data.tenant));
-          window.location.href = '/dashboard';
+          window.location.href = '/dashboard.html';
         } else {
           showError(data.message);
         }
