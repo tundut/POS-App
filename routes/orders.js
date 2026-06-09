@@ -85,7 +85,14 @@ router.post('/', auth, async (req, res) => {
       const price = parseFloat(product.price);
       const subtotal = price * qty;
       totalAmount += subtotal;
-      return { product_id: product.id, product_name: product.name, product_price: price, quantity: qty, subtotal };
+      return {
+        product_id: product.id,
+        product_name: product.name,
+        product_price: price,
+        quantity: qty,
+        subtotal,
+        tenant_id: req.tenantId,
+      };
     });
 
     // Create order — VNPay orders start as 'pending', cash/card are 'completed' immediately
@@ -103,9 +110,9 @@ router.post('/', auth, async (req, res) => {
     // Insert order items and update stock
     for (const item of orderItems) {
       await client.query(
-        `INSERT INTO order_items(order_id, product_id, product_name, product_price, quantity, subtotal)
-         VALUES($1, $2, $3, $4, $5, $6)`,
-        [order.id, item.product_id, item.product_name, item.product_price, item.quantity, item.subtotal]
+        `INSERT INTO order_items(order_id, product_id, tenant_id, product_name, product_price, quantity, subtotal)
+         VALUES($1, $2, $3, $4, $5, $6, $7)`,
+        [order.id, item.product_id, item.tenant_id, item.product_name, item.product_price, item.quantity, item.subtotal]
       );
 
       // Only update product stock quantity immediately if not vnpay
